@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>YouTube Embed Player Checker</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: #eee; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
+        .card { background: #222; border: 1px solid #333; padding: 10px; border-radius: 8px; }
+        .error { color: #ff5252; font-weight: bold; }
+        .success { color: #69f0ae; font-weight: bold; }
+        iframe { width: 100%; height: 180px; border: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Checking 18 Game Trailers via YouTube IFrame API</h1>
+    <div id="summary">Waiting for YouTube API...</div>
+    <div class="grid" id="container"></div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        const games = [
+            { id: 1, title: "Elden Ring", vid: "AKXiKBnzpBQ" },
+            { id: 2, title: "Cyberpunk 2077", vid: "8X2kIfS6fb8" },
+            { id: 3, title: "God of War Ragnarok", vid: "dIQGI36BxDE" },
+            { id: 4, title: "EA SPORTS FC 24", vid: "XhP3Xh4LMA8" },
+            { id: 5, title: "Genshin Impact", vid: "TAlKhARUcoY" },
+            { id: 6, title: "Resident Evil 4 Remake", vid: "E69tKrfEQag" },
+            { id: 7, title: "Grand Theft Auto V", vid: "QkkoHAzjnUs" },
+            { id: 8, title: "Red Dead Redemption 2", vid: "eaW0tYpxyp0" },
+            { id: 9, title: "The Witcher 3: Wild Hunt", vid: "c0i88t0Kacs" },
+            { id: 10, title: "Baldur's Gate 3", vid: "OcP0WdH7rTs" },
+            { id: 11, title: "Sekiro: Shadows Die Twice", vid: "rXMX4YJ7Lks" },
+            { id: 12, title: "Assassin's Creed Mirage", vid: "x55lAlFtXmw" },
+            { id: 13, title: "Final Fantasy VII Remake Intergrade", vid: "YwZ8SkxWIQU" },
+            { id: 14, title: "Counter-Strike 2", vid: "ExZtISgOxEQ" },
+            { id: 15, title: "Monster Hunter: World", vid: "Ro6r15wzp2o" },
+            { id: 16, title: "Dark Souls III", vid: "cWBwFhUv1-8" },
+            { id: 17, title: "Forza Horizon 5", vid: "FYH9n37B7Yw" },
+            { id: 18, title: "Dota 2", vid: "-cSFPIwMEq4" }
+        ];
+
+        window.results = {};
+
+        function onYouTubeIframeAPIReady() {
+            const container = document.getElementById('container');
+            games.forEach((game, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.id = 'card-' + game.id;
+                card.innerHTML = `
+                    <h3>#${game.id} ${game.title}</h3>
+                    <div id="player-${game.id}"></div>
+                    <p id="status-${game.id}">Initializing...</p>
+                `;
+                container.appendChild(card);
+
+                window.results[game.id] = { id: game.id, title: game.title, vid: game.vid, status: 'WAITING' };
+
+                const player = new YT.Player('player-' + game.id, {
+                    height: '180',
+                    width: '320',
+                    videoId: game.vid,
+                    playerVars: {
+                        'playsinline': 1,
+                        'origin': window.location.origin
+                    },
+                    events: {
+                        'onReady': function(event) {
+                            // If onReady fired and no error within 3 seconds, mark OK
+                            setTimeout(() => {
+                                if (window.results[game.id].status === 'WAITING') {
+                                    window.results[game.id].status = 'OK';
+                                    document.getElementById('status-' + game.id).innerHTML = '<span class="success">OK (Playable)</span>';
+                                    checkCompletion();
+                                }
+                            }, 3000);
+                        },
+                        'onError': function(event) {
+                            const code = event.data;
+                            let msg = 'Error ' + code;
+                            if (code === 101 || code === 150) {
+                                msg += ' - Playback on other websites disabled by owner';
+                            } else if (code === 100) {
+                                msg += ' - Video not found/removed/private';
+                            } else if (code === 2) {
+                                msg += ' - Invalid video ID';
+                            }
+                            window.results[game.id].status = 'ERROR';
+                            window.results[game.id].error = msg;
+                            document.getElementById('status-' + game.id).innerHTML = `<span class="error">${msg}</span>`;
+                            checkCompletion();
+                        }
+                    }
+                });
+            });
+        }
+
+        function checkCompletion() {
+            const keys = Object.keys(window.results);
+            const done = keys.filter(k => window.results[k].status !== 'WAITING');
+            document.getElementById('summary').innerText = `Checked ${done.length}/${games.length} games.`;
+        }
+    </script>
+</body>
+</html>
